@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PORT=5100
+export PORT=5101
 export MIX_ENV=prod
 export GIT_PATH=/home/memory/src/memory 
 

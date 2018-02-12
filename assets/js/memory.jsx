@@ -30,8 +30,7 @@ class Memory extends React.Component {
 
     //sends the index of the card that was clicked to the server
     clickCard(index) {
-		let flipped = this.flipped(this.state.cards);
-
+		    let flipped = this.flipped(this.state.cards);
         if (flipped.length < 2) {
             this.channel.push("click", { state: this.state, card: index })
                 .receive("ok", this.newView);
