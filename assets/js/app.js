@@ -18,13 +18,28 @@ import "phoenix_html";
 // Local files can be imported directly using relative
 // paths "./socket" or full ones "web/static/js/socket".
 
-// import socket from "./socket"
-
+import socket from "./socket.js"
 import run_memory from "./memory.jsx";
 
+//taken from Nat Tuck's lecture notes
 function init() {
-  let root = document.getElementById('game');
-  run_memory(root);
+    if (document.getElementById('game')) {
+        $('#start-game').click(() => {
+            let name = $('#game-name-input').val();
+            let channel = socket.channel(`memory:${name}`, {});
+            channel.join()
+                .receive("ok", resp => {
+                    let title = document.getElementById('title');
+                    title.innerText = `Memory Game: ${name}`
+
+                    let root = document.getElementById('game');
+                    run_memory(root, channel, resp.game);
+
+                    console.log(`memory:${name} joined successfully`, resp);
+                })
+                .receive("error", resp => { console.log("Unable to join", resp); });
+        });
+    }
 }
 
 // Use jQuery to delay until page loaded.

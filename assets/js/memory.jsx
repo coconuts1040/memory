@@ -2,112 +2,69 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from 'reactstrap';
 
-export default function run_memory(root) {
-	ReactDOM.render(<Memory />, root);
+export default function run_memory(root, channel, game) {
+	ReactDOM.render(<Memory channel={channel} game={game} />, root);
 }
-
-//
 
 class Memory extends React.Component {
 	constructor(props) {
-		super(props);
+        super(props);
 
-		let cards = [];
-		
-    for(let i = 0; i < 16; i++) {
-			let card = { flipped: false, matched: false };
-			cards[i] = card;
-		}
+        this.channel = props.channel;
 
-		let cardLet = this.randomLetter(cards);
-    
-		this.state = {
-			cards: cardLet,
-			clicks: 0,
-		};
+        this.state = props.game;
+
+        this.newView = this.newView.bind(this);
 	}
 
-  //getter for state.cards
-  getCards() {
-    return this.state.cards;
-  }
+    //taken from Nat Tuck's lecture notes
+    newView(view) {
+        console.log("New view", view);
+        this.setState(view);
 
-  //getter for state.clicks
-  getClicks() {
-    return this.state.clicks;
-  }
-
-	//generates the random capital letters A-H for each card, with each letter
-  // appearing twice
-	randomLetter(cards) {
-		let contents = "ABCDEFGHABCDEFGH";
-		let clet = _.map(cards, (card) => {
-				let letr = contents.charAt(Math.floor(Math.random() * contents.length));
-				contents = contents.replace(letr, "");
-				return _.extend(card, {letter: letr});
-		});
-		return clet;
-	}
-
-  //reloads the page to reset the game
-  resetGame(e) {
-    e.stopPropagation();
-    return location.reload();
-  }
-
-	//flips a down card over
-	clickCard(index) {
-		let flipped = [];
-		for ( let i = 0; i < 16; i++) {
-			if (this.state.cards[i].flipped) {
-				flipped.push(i);
-			}
-		}
-
-    if (flipped.length < 2) {
-      let flipCards = _.map(this.state.cards, (card, i) => {
-			  if (i == index) {
-				  return _.extend(card, {flipped: true});
-			  }
-			  return card;
-		  });
-
-      let addClick = this.state.clicks + 1;
-		  this.setState({cards: flipCards, clicks: addClick});
+        let flipped = this.flipped(view.cards);
+        if (flipped.length == 2) {
+            window.setTimeout(() => this.flipBack(), 1000);
+        }
     }
-	}
 
-	//determines if the flipped cards match and changes them if so
-	tryMatch() {
+    //sends the index of the card that was clicked to the server
+    clickCard(index) {
+		let flipped = this.flipped(this.state.cards);
+
+        if (flipped.length < 2) {
+            this.channel.push("click", { state: this.state, card: index })
+                .receive("ok", this.newView);
+        }
+    }
+
+    //tells the server to reset the cards to a new game state
+    resetGame() {
+        this.channel.push("reset", {})
+            .receive("ok", this.newView);
+    }
+
+    //tells the server to flip all cards back over
+    flipBack() {
+        this.channel.push("flip-back", { state: this.state })
+            .receive("ok", this.newView);
+    }
+
+    //Returns a list of the cards that are flipped
+    flipped(cards) {
 		let flipped = [];
 		for ( let i = 0; i < 16; i++) {
-			if (this.state.cards[i].flipped) {
+			if (cards[i].flipped) {
 				flipped.push(i);
 			}
-		}
+        }
+        return flipped;
+    }
 
-		if (flipped.length == 2) {
-			let newCards = _.map(this.state.cards, (card, i) => {
-				if (flipped.includes(i)) {
-					if (this.state.cards[flipped[0]].letter == this.state.cards[flipped[1]].letter) {
-						return _.extend(card, {flipped: false, matched: true});
-					}
-					return _.extend(card, {flipped: false});
-				}
-				else {
-					return card;
-				}
-			});
-
-			this.setState({cards: newCards});
-		}
-	}
-	
 	render() {
 		let cards_list = _.map(this.state.cards, (card, ii) => {
-			return <CardRender idx={ii} card={card} tryMatch={this.tryMatch.bind(this)} clickCard={this.clickCard.bind(this)} root={this} key={ii} />;
-		});
-    let clicks = this.getClicks();
+            return <CardRender idx={ii} card={card} clickCard={this.clickCard.bind(this)} key={ii} />;
+        });
 		return (
 			<span>
 				<div className="row">
@@ -115,17 +72,17 @@ class Memory extends React.Component {
 				</div>
 				<div className="row">
 					<div className="col-5">
-						<p>Clicks: {clicks}</p>
+						<p>Clicks: {this.state.clicks}</p>
 					</div>
 					<div className="col-2">
 						<Button onClick={this.resetGame.bind(this)}>Reset</Button>
 					</div>
 				</div>
 				<div className="row">
-          <div className="col">
-					  <p><GetScore getClicks={this.getClicks.bind(this)} /></p>
-					  <IsGameOver root={this} getClicks={this.getClicks.bind(this)} />
-          </div>
+                    <div className="col">
+                        <p>Score: {this.state.score}</p>
+					    <IsGameOver cards={this.state.cards} score={this.state.score} />
+                    </div>
 				</div>
 			</span>
 		);
@@ -143,10 +100,10 @@ function CardRender(props) {
 		</div>);
 	}
 	else if(card.flipped) {
-		window.setTimeout(props.tryMatch, 1000);
+        //window.setTimeout(props.tryMatch, 1000);
 		return (<div className="col-3">
 			<div className="card text-center" style={{width: 82, height: 112}}>
-				<div className="card-body">	
+				<div className="card-body">
 					<p className="card-text">{card.letter}</p>
 				</div>
 			</div>
@@ -154,33 +111,21 @@ function CardRender(props) {
 	}
 	else {
 		return (<div className="col-3">
-			<div className="card" style={{width: 82}}>	
+            <div className="card" style={{width: 82}}>
 				<img className="card-img" src="images/cardBack.jpg" style={{width: 80, height: "auto"}} alt="Card Back" onClick={() => props.clickCard(props.idx)}  />
 			</div>
 		</div>);
 	}
 }
 
-//calculates the current score based on the number of clicks
-function GetScore(props) {
-	if (props.getClicks() <= 16) {
-		return <span>Score: 100</span>;
-	}
-	else {
-		let score = 100 - ((props.getClicks() - 16) * 2);	
-		return <span>Score: {score}</span> 
-	}
-}
-
 //determines if the game is over
 function IsGameOver(props) {
-  let cards = props.root.getCards();
-	for ( let i = 0; i < 16; i++) {
-		if (!cards[i].matched) {
-			return <div></div>;
-		}
+    for ( let i = 0; i < 16; i++) {
+	    if (!props.cards[i].matched) {
+	    	return <div></div>;
+	    }
 	}
 	return (<div className="alert alert-success" role="alert">
-			You won with {GetScore(props)}!
-			</div>);
+	    	You won with {props.score}!
+        </div>);
 }
