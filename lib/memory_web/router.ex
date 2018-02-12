@@ -16,6 +16,7 @@ defmodule MemoryWeb.Router do
   scope "/", MemoryWeb do
     pipe_through :browser # Use the default browser stack
 
+    get "/game/:game", PageController, :game
     get "/", PageController, :index
   end
 

@@ -1,8 +1,10 @@
-<h1>Memory Game</h1>
+<h1 id="title">Memory Game</h1>
 
-<div id="game">
-  Loading...
+<!-- Taken from Nat Tuck's lecture notes -->
+<div class="row" id="game">
+  <div class="col">
+    <h1>Join a Game</h1>
+    <p style="text-align: center"><input type="text" id="game-name-input"><span><button id="start-game">Start Game</button></span></p>
+    <p id="game-output"></p>
+  </div>
 </div>
-
-
-
